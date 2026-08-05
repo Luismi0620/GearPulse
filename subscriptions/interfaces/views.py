@@ -14,16 +14,42 @@ def _request_payload(request) -> dict:
     return request.POST.dict()
 
 
+def _error_response(error: ValueError, status_code: int) -> JsonResponse:
+    return JsonResponse({"error": str(error)}, status=status_code)
+
+
+def _subscription_response(subscription) -> JsonResponse:
+    return JsonResponse(
+        {"user_id": subscription.user_id, "plan": subscription.plan, "status": "active"},
+        status=201,
+    )
+
+
+def _metrics_response(user_id: str, metrics) -> JsonResponse:
+    return JsonResponse(
+        {
+            "user_id": user_id,
+            "pulse_bpm": metrics.pulse_bpm,
+            "sleep_hours": metrics.sleep_hours,
+            "training_load": metrics.training_load,
+            "generated_at": metrics.generated_at.isoformat(),
+        }
+    )
+
+
 @method_decorator(csrf_exempt, name="dispatch")
 class ActivateSubscriptionView(View):
     def post(self, request):
         data = _request_payload(request)
         service = get_subscription_service()
         try:
-            subscription = service.activate_subscription(data.get("user_id", ""), data.get("plan", ""))
+            subscription = service.activate_subscription(
+                data.get("user_id", ""),
+                data.get("plan", ""),
+            )
         except ValueError as exc:
-            return JsonResponse({"error": str(exc)}, status=400)
-        return JsonResponse({"user_id": subscription.user_id, "plan": subscription.plan, "status": "active"}, status=201)
+            return _error_response(exc, 400)
+        return _subscription_response(subscription)
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -33,13 +59,5 @@ class HealthMetricsView(View):
         try:
             metrics = service.get_user_metrics(user_id)
         except ValueError as exc:
-            return JsonResponse({"error": str(exc)}, status=403)
-        return JsonResponse(
-            {
-                "user_id": user_id,
-                "pulse_bpm": metrics.pulse_bpm,
-                "sleep_hours": metrics.sleep_hours,
-                "training_load": metrics.training_load,
-                "generated_at": metrics.generated_at.isoformat(),
-            }
-        )
+            return _error_response(exc, 403)
+        return _metrics_response(user_id, metrics)
