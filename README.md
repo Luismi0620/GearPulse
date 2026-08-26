@@ -99,3 +99,54 @@ python manage.py test
 - Bloqueo de metricas sin suscripcion
 - Flujo HTTP: activar y luego consultar metricas
 - Flujo HTTP: intento de metricas sin suscripcion
+
+---
+
+# GearPulse - Entrega No. 1 (Nucleo de Negocio y API Profesional)
+
+Sobre la base del Taller 01 se agrego el nucleo de negocio y se migro toda la presentacion a
+Django REST Framework.
+
+## Modulos nuevos
+
+- **accounts**: registro de usuarios (`User`), requerido por `subscriptions` y `devices`.
+- **devices**: emparejamiento de dispositivos (`Device`, patron **Builder**) y registro de
+  sesiones de entrenamiento (`WorkoutSession`).
+
+## Cambios sobre `subscriptions`
+
+- Vistas migradas de `django.views.View` a `rest_framework.views.APIView` con serializers.
+- Persistencia real en base de datos (antes era un repositorio en memoria); se mantiene el
+  repositorio en memoria solo para pruebas unitarias rapidas.
+- Nuevo catalogo de planes (`GET /plans/`).
+- Nuevos codigos de estado: **404** si el usuario no existe, **409** si ya tiene una
+  suscripcion activa.
+
+## Endpoints
+
+| Metodo | Ruta | Descripcion | Codigos |
+|---|---|---|---|
+| POST | `/users/register/` | Registra un usuario | 201, 400, 409 |
+| GET | `/plans/` | Lista el catalogo de planes | 200 |
+| POST | `/subscription/activate/` | Activa una suscripcion | 201, 400, 404, 409 |
+| GET | `/subscription/<user_id>/metrics/` | Metricas simuladas | 200, 403 |
+| POST | `/devices/pair/` | Empareja un dispositivo (Builder) | 201, 400, 404, 409 |
+| POST | `/devices/<device_id>/workouts/` | Registra una sesion de entrenamiento | 201, 400, 404 |
+| GET | `/devices/<device_id>/workouts/` | Lista sesiones de un dispositivo | 200, 404 |
+
+## Modelo de dominio implementado (6 de 8 clases propuestas, ~60%)
+
+`User`, `Device`, `Subscription`, `Plan`, `HealthMetrics`, `WorkoutSession`. Quedan para una fase
+futura `PaymentTransaction` y `Notification` (esta ultima ya existe como el puerto `Notifier`).
+
+Ver `docs/Entrega-01-Nucleo-de-Negocio.md` para la justificacion de carpetas, el diagrama de
+secuencia del flujo mas complejo y la vision de escalabilidad hacia un API Gateway.
+
+## Ejecucion
+
+```bash
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
+python manage.py test
+```

@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta
 
-from .entities import Subscription
+from django.utils import timezone
 
+from .entities import Subscription
 
 PLAN_DURATION_DAYS = {
     "monthly": 30,
@@ -25,7 +26,7 @@ class SubscriptionBuilder:
         return self
 
     def starts_now(self) -> "SubscriptionBuilder":
-        self._started_at = datetime.utcnow()
+        self._started_at = timezone.now()
         return self
 
     def build(self) -> Subscription:
@@ -34,7 +35,7 @@ class SubscriptionBuilder:
         if self._plan not in PLAN_DURATION_DAYS:
             raise ValueError("invalid plan: use monthly, quarterly or yearly")
 
-        started_at = self._started_at or datetime.utcnow()
+        started_at = self._started_at or timezone.now()
         expires_at = started_at + timedelta(days=PLAN_DURATION_DAYS[self._plan])
         return Subscription(
             user_id=self._user_id,

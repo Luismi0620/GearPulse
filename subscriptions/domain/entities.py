@@ -1,5 +1,7 @@
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
+
+from django.utils import timezone
 
 
 @dataclass(frozen=True)
@@ -11,7 +13,7 @@ class Subscription:
     active: bool = field(default=True)
 
     def is_active(self, now: datetime | None = None) -> bool:
-        check_time = now or datetime.utcnow()
+        check_time = now or timezone.now()
         return self.active and self.expires_at > check_time
 
 
