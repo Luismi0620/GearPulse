@@ -1,14 +1,34 @@
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: gearpulse
+      POSTGRES_USER: gearpulse
+      POSTGRES_PASSWORD: gearpulse
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gearpulse -d gearpulse"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
   django_web:
     build:
       context: .
       dockerfile: Dockerfile
     environment:
       ENV_TYPE: MOCK
+      DB_ENGINE: postgres
+      DB_HOST: db
+      POSTGRES_DB: gearpulse
+      POSTGRES_USER: gearpulse
+      POSTGRES_PASSWORD: gearpulse
+    depends_on:
+      db:
+        condition: service_healthy
     expose:
       - "8000"
-    volumes:
-      - django_data:/app/data
 
   health_metrics_service:
     build:
@@ -27,4 +47,4 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
 
 volumes:
-  django_data:
+  postgres_data:

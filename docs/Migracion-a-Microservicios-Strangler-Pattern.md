@@ -32,7 +32,7 @@ flowchart LR
     C[Cliente] --> N[Nginx :8080]
     N -->|/api/v1/* y rutas actuales| D[Django monolito :8000]
     N -->|/api/v2/health-metrics/*| F[Flask métricas :5000]
-    D --> DB[(SQLite / futura BD transaccional)]
+    D --> DB[(PostgreSQL transaccional)]
     F --> W[Proveedor de wearables - futura integración]
 ```
 
@@ -42,12 +42,15 @@ flowchart LR
 | --- | --- | --- |
 | `GET /api/v1/subscription/<user_id>/metrics/` | Django | Ruta legacy, conservada mientras ocurre la migración. |
 | `GET /api/v2/health-metrics/<user_id>/` | Flask | Nueva ruta estrangulada. Devuelve `user_id`, métricas, fecha ISO 8601 y origen. |
+| `POST /api/v2/health-metrics/` | Flask | Recibe JSON `{"user_id": "..."}` y devuelve las métricas. Datos inválidos responden `400` JSON. |
 | `GET /health` (red interna) | Flask | Health check del microservicio. |
 
 Nginx bifurca el tráfico por URL. Las rutas bajo `/api/v1/` eliminan ese prefijo al
 reenviarse al monolito para mantener compatibilidad con sus rutas actuales; la ruta v2 mantiene
 el URI completo para Flask. Ambos servicios se construyen con Dockerfiles independientes y se
-levantan con `docker compose up --build`.
+levantan con `docker compose up --build`. Compose incorpora PostgreSQL como servicio `db`;
+Django espera su health check antes de ejecutar migraciones. SQLite se conserva únicamente como
+configuración predeterminada para ejecutar las pruebas locales sin Docker.
 
 ## Resiliencia
 
@@ -66,4 +69,9 @@ curl http://localhost:8080/api/v1/plans/
 
 # Microservicio Flask estrangulado
 curl http://localhost:8080/api/v2/health-metrics/user-123/
+
+# Contrato JSON del microservicio
+curl -X POST http://localhost:8080/api/v2/health-metrics/ \
+  -H "Content-Type: application/json" \
+  -d '{"user_id":"user-123"}'
 ```
