@@ -1,5 +1,9 @@
 # GearPulse - Taller 01 (Refactorizacion Arquitectonica)
 
+> Taller 02: la migración Strangler Pattern, la matriz de decisión, los contratos y las
+> instrucciones Docker están documentados en
+> [docs/Migracion-a-Microservicios-Strangler-Pattern.md](docs/Migracion-a-Microservicios-Strangler-Pattern.md).
+
 Implementacion inicial de la funcionalidad critica de negocio: **suscripcion para habilitar metricas de salud** en modo simulacion.
 
 ## Objetivo alcanzado

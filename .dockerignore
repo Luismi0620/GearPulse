@@ -1,0 +1,8 @@
+.git
+.venv
+venv
+__pycache__
+*.py[cod]
+*.sqlite3
+.pytest_cache
+flask_metrics_service/.pytest_cache
