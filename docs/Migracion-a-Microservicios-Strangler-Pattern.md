@@ -49,8 +49,9 @@ Nginx bifurca el tráfico por URL. Las rutas bajo `/api/v1/` eliminan ese prefij
 reenviarse al monolito para mantener compatibilidad con sus rutas actuales; la ruta v2 mantiene
 el URI completo para Flask. Ambos servicios se construyen con Dockerfiles independientes y se
 levantan con `docker compose up --build`. Compose incorpora PostgreSQL como servicio `db`;
-Django espera su health check antes de ejecutar migraciones. SQLite se conserva únicamente como
-configuración predeterminada para ejecutar las pruebas locales sin Docker.
+Django espera su health check antes de ejecutar migraciones y Nginx espera que el health check
+de Flask responda correctamente. SQLite se conserva únicamente como configuración predeterminada
+para ejecutar las pruebas locales sin Docker.
 
 ## Resiliencia
 
@@ -61,17 +62,23 @@ de impacto de sus dependencias y permite escalarlo de forma independiente.
 
 ## Validación
 
-```bash
-docker compose up --build
+```powershell
+docker compose up --build -d
+docker compose ps
 
 # Monolito por la ruta legacy
-curl http://localhost:8080/api/v1/plans/
+Invoke-RestMethod http://localhost:8080/api/v1/plans/
 
 # Microservicio Flask estrangulado
-curl http://localhost:8080/api/v2/health-metrics/user-123/
+Invoke-RestMethod http://localhost:8080/api/v2/health-metrics/user-123/
 
 # Contrato JSON del microservicio
-curl -X POST http://localhost:8080/api/v2/health-metrics/ \
-  -H "Content-Type: application/json" \
-  -d '{"user_id":"user-123"}'
+Invoke-RestMethod -Method Post `
+  -Uri http://localhost:8080/api/v2/health-metrics/ `
+  -ContentType 'application/json' `
+  -Body '{"user_id":"user-123"}'
+
+# Pruebas aisladas de ambos servicios
+docker compose exec -T health_metrics_service python -m unittest flask_metrics_service.test_app
+docker compose exec -T django_web python manage.py test accounts subscriptions devices
 ```

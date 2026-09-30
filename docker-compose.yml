@@ -35,12 +35,19 @@ services:
       context: ./flask_metrics_service
     expose:
       - "5000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://localhost:5000/health').read()"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   nginx:
     image: nginx:1.27-alpine
     depends_on:
-      - django_web
-      - health_metrics_service
+      django_web:
+        condition: service_started
+      health_metrics_service:
+        condition: service_healthy
     ports:
       - "8080:80"
     volumes:

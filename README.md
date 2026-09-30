@@ -4,6 +4,42 @@
 > instrucciones Docker están documentados en
 > [docs/Migracion-a-Microservicios-Strangler-Pattern.md](docs/Migracion-a-Microservicios-Strangler-Pattern.md).
 
+## Taller 02: ejecución con Docker
+
+El proyecto completo se ejecuta con Docker; no hace falta instalar Python, Django ni Flask en
+el equipo anfitrión.
+
+```powershell
+docker compose up --build -d
+docker compose ps
+```
+
+Los servicios `db`, `django_web`, `health_metrics_service` y `nginx` deben aparecer en estado
+`running` (los dos primeros servicios con health check se muestran como `healthy`). La API queda
+disponible en `http://localhost:8080` y el panel provisional en la raíz.
+
+Verificación del microservicio Flask a través de Nginx:
+
+```powershell
+Invoke-RestMethod http://localhost:8080/api/v2/health-metrics/user-123/
+
+Invoke-RestMethod -Method Post `
+  -Uri http://localhost:8080/api/v2/health-metrics/ `
+  -ContentType 'application/json' `
+  -Body '{"user_id":"user-123"}'
+```
+
+Pruebas por servicio:
+
+```powershell
+docker compose exec -T health_metrics_service python -m unittest flask_metrics_service.test_app
+docker compose exec -T django_web python manage.py test accounts subscriptions devices
+```
+
+`python manage.py test` sin etiquetas intenta descubrir también los tests de Flask dentro del
+contenedor Django, que intencionalmente no instala las dependencias del microservicio. Por eso
+las pruebas se ejecutan separadas por servicio.
+
 Implementacion inicial de la funcionalidad critica de negocio: **suscripcion para habilitar metricas de salud** en modo simulacion.
 
 ## Objetivo alcanzado
