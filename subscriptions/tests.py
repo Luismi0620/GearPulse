@@ -1,5 +1,3 @@
-import json
-
 from django.test import Client, TestCase
 
 from accounts.models import User
@@ -58,41 +56,7 @@ class SubscriptionOrmRepositoryTests(TestCase):
         self.assertIsNotNone(active)
 
 
-class SubscriptionViewsTests(TestCase):
-    def setUp(self):
-        self.client = Client()
-        self.user = User.objects.create(email="views@test.com")
-
-    def test_activate_then_get_metrics(self):
-        activate_response = self.client.post(
-            "/subscription/activate/",
-            data=json.dumps({"user_id": str(self.user.id), "plan": "monthly"}),
-            content_type="application/json",
-        )
-        self.assertEqual(activate_response.status_code, 201)
-
-        metrics_response = self.client.get(f"/subscription/{self.user.id}/metrics/")
-        self.assertEqual(metrics_response.status_code, 200)
-
-    def test_metrics_without_subscription_returns_403(self):
-        metrics_response = self.client.get("/subscription/no-sub/metrics/")
-        self.assertEqual(metrics_response.status_code, 403)
-
-    def test_activate_unknown_user_returns_404(self):
-        response = self.client.post(
-            "/subscription/activate/",
-            data=json.dumps({"user_id": "00000000-0000-0000-0000-000000000000", "plan": "monthly"}),
-            content_type="application/json",
-        )
+class StranglerBoundaryTests(TestCase):
+    def test_legacy_subscription_route_is_no_longer_exposed_by_django(self):
+        response = Client().post("/subscription/activate/", data={}, content_type="application/json")
         self.assertEqual(response.status_code, 404)
-
-    def test_activate_duplicate_subscription_returns_409(self):
-        payload = json.dumps({"user_id": str(self.user.id), "plan": "monthly"})
-        self.client.post("/subscription/activate/", data=payload, content_type="application/json")
-        response = self.client.post("/subscription/activate/", data=payload, content_type="application/json")
-        self.assertEqual(response.status_code, 409)
-
-    def test_plan_catalog_is_seeded(self):
-        response = self.client.get("/plans/")
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.json()), 3)

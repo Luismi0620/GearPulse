@@ -5,7 +5,7 @@ from flask_metrics_service.app import create_app
 
 class HealthMetricsApiTests(unittest.TestCase):
     def setUp(self):
-        self.client = create_app().test_client()
+        self.client = create_app({"TESTING": True, "VERIFY_SUBSCRIPTION": False}).test_client()
 
     def test_health_check_returns_json(self):
         response = self.client.get("/health")
@@ -45,7 +45,7 @@ class HealthMetricsApiTests(unittest.TestCase):
         self.assertEqual(response.json["status"], 404)
 
     def test_unexpected_errors_return_structured_500(self):
-        app = create_app()
+        app = create_app({"TESTING": True, "VERIFY_SUBSCRIPTION": False})
 
         @app.get("/_test/error")
         def raise_error():
@@ -56,6 +56,17 @@ class HealthMetricsApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 500)
         self.assertEqual(response.json, {"error": "internal server error", "status": 500})
+
+    def test_metrics_require_an_active_subscription(self):
+        app = create_app(
+            {
+                "TESTING": True,
+                "VERIFY_SUBSCRIPTION": True,
+                "SUBSCRIPTION_VALIDATOR": lambda user_id: False,
+            }
+        )
+        response = app.test_client().get("/api/v2/health-metrics/user-without-plan/")
+        self.assertEqual(response.status_code, 403)
 
 
 if __name__ == "__main__":

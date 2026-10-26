@@ -1,0 +1,159 @@
+openapi: 3.1.0
+info:
+  title: GearPulse Gateway API
+  version: 2.0.0
+  description: Public contracts routed by Nginx to independent Flask microservices.
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/v2/users/register/:
+    post:
+      summary: Register a GearPulse user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: {type: string, format: email}
+                role: {type: string, enum: [athlete, admin], default: athlete}
+      responses:
+        "201": {description: User registered}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "409": {description: Email conflict}
+  /api/v2/users/{user_id}/:
+    get:
+      summary: Get a user
+      parameters: [{$ref: "#/components/parameters/UserId"}]
+      responses:
+        "200": {description: User found}
+        "404": {description: User not found}
+  /api/v2/plans/:
+    get:
+      summary: List subscription plans
+      responses:
+        "200": {description: Plan catalog}
+  /api/v2/subscriptions/activate/:
+    post:
+      summary: Activate a subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, plan]
+              properties:
+                user_id: {type: string}
+                plan: {type: string, enum: [monthly, quarterly, yearly]}
+      responses:
+        "201": {description: Subscription activated}
+        "404": {description: User not found}
+        "409": {description: Existing active subscription}
+        "503": {description: Accounts service unavailable}
+  /api/v2/devices/pair/:
+    post:
+      summary: Pair a wearable
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, brand, model, serial_number]
+              properties:
+                user_id: {type: string}
+                brand: {type: string}
+                model: {type: string}
+                serial_number: {type: string, minLength: 6}
+      responses:
+        "201": {description: Device paired}
+        "409": {description: Serial conflict}
+  /api/v2/devices/{device_id}/workouts/:
+    parameters:
+      - name: device_id
+        in: path
+        required: true
+        schema: {type: string}
+    get:
+      summary: List workouts for a device
+      responses:
+        "200": {description: Workout list}
+        "404": {description: Device not found}
+    post:
+      summary: Log a workout and enqueue its report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [start_time, end_time, calories, avg_heart_rate]
+              properties:
+                start_time: {type: string, format: date-time}
+                end_time: {type: string, format: date-time}
+                calories: {type: integer, minimum: 0}
+                avg_heart_rate: {type: integer, minimum: 1}
+      responses:
+        "201": {description: Workout logged}
+        "400": {$ref: "#/components/responses/BadRequest"}
+  /api/v2/health-metrics/{user_id}/:
+    get:
+      summary: Get health metrics for a subscribed user
+      parameters: [{$ref: "#/components/parameters/UserId"}]
+      responses:
+        "200": {description: Deterministic health metrics}
+        "403": {description: Active subscription required}
+        "503": {description: Subscription service unavailable}
+  /api/v2/integrations/weather/:
+    get:
+      summary: Get normalized Open-Meteo conditions through an Adapter
+      parameters:
+        - {name: latitude, in: query, schema: {type: number, default: 6.2442}}
+        - {name: longitude, in: query, schema: {type: number, default: -75.5812}}
+      responses:
+        "200": {description: Normalized weather conditions}
+        "503": {description: Third-party API unavailable}
+  /api/v2/integrations/ally/:
+    get:
+      summary: Consume and normalize the allied team's service
+      responses:
+        "200": {description: Normalized allied payload}
+        "503": {description: Ally missing, circuit open or unavailable}
+  /api/v2/public/summary/:
+    get:
+      summary: Public JSON service provided by GearPulse
+      responses:
+        "200": {description: System capabilities and status}
+  /api/v2/tasks/{task_id}/:
+    get:
+      summary: Read a Celery task status
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: Task state and optional result}
+components:
+  parameters:
+    UserId:
+      name: user_id
+      in: path
+      required: true
+      schema: {type: string}
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: object
+                properties:
+                  code: {type: string}
+                  message: {type: string}

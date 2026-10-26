@@ -1,14 +1,38 @@
-"""Servicio aislado de métricas de salud para la migración Strangler Pattern."""
+"""Independent health metrics service extracted with the Strangler Pattern."""
 
+import os
 from datetime import UTC, datetime
 from hashlib import sha256
 
+import requests
 from flask import Flask, jsonify, request
 from werkzeug.exceptions import HTTPException
 
 
-def create_app() -> Flask:
+def create_app(config: dict | None = None) -> Flask:
     app = Flask(__name__)
+    app.config.update(
+        SUBSCRIPTIONS_SERVICE_URL=os.getenv(
+            "SUBSCRIPTIONS_SERVICE_URL", "http://subscriptions_service:5000"
+        ),
+        HTTP_TIMEOUT=float(os.getenv("HTTP_TIMEOUT", "3")),
+        VERIFY_SUBSCRIPTION=os.getenv("VERIFY_SUBSCRIPTION", "true").lower() == "true",
+    )
+    if config:
+        app.config.update(config)
+
+    def has_active_subscription(user_id: str) -> bool:
+        verifier = app.config.get("SUBSCRIPTION_VALIDATOR")
+        if verifier:
+            return bool(verifier(user_id))
+        if not app.config["VERIFY_SUBSCRIPTION"]:
+            return True
+        response = requests.get(
+            f"{app.config['SUBSCRIPTIONS_SERVICE_URL']}/internal/subscriptions/{user_id}/active/",
+            timeout=app.config["HTTP_TIMEOUT"],
+        )
+        response.raise_for_status()
+        return bool(response.json().get("active"))
 
     def build_metrics(user_id: str) -> dict:
         normalized_user_id = user_id.strip()
@@ -34,7 +58,11 @@ def create_app() -> Flask:
     @app.get("/api/v2/health-metrics/<user_id>/")
     def get_health_metrics(user_id: str):
         try:
+            if not has_active_subscription(user_id):
+                return jsonify({"error": "active subscription required", "status": 403}), 403
             return jsonify(build_metrics(user_id)), 200
+        except requests.RequestException:
+            return jsonify({"error": "subscriptions service unavailable", "status": 503}), 503
         except ValueError as error:
             return jsonify({"error": str(error), "status": 400}), 400
 
@@ -49,7 +77,11 @@ def create_app() -> Flask:
             return jsonify({"error": "user_id is required", "status": 400}), 400
 
         try:
+            if not has_active_subscription(user_id):
+                return jsonify({"error": "active subscription required", "status": 403}), 403
             return jsonify(build_metrics(user_id)), 200
+        except requests.RequestException:
+            return jsonify({"error": "subscriptions service unavailable", "status": 503}), 503
         except ValueError as error:
             return jsonify({"error": str(error), "status": 400}), 400
 

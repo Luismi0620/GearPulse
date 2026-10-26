@@ -20,31 +20,7 @@ class UserServiceTests(TestCase):
             UserService().register_user("dup@test.com", "athlete")
 
 
-class RegisterUserViewTests(TestCase):
-    def setUp(self):
-        self.client = Client()
-
-    def test_register_returns_201(self):
-        response = self.client.post(
-            "/users/register/",
-            data={"email": "new@test.com", "role": "athlete"},
-            content_type="application/json",
-        )
-        self.assertEqual(response.status_code, 201)
-
-    def test_register_duplicate_returns_409(self):
-        self.client.post(
-            "/users/register/",
-            data={"email": "twice@test.com"},
-            content_type="application/json",
-        )
-        response = self.client.post(
-            "/users/register/",
-            data={"email": "twice@test.com"},
-            content_type="application/json",
-        )
-        self.assertEqual(response.status_code, 409)
-
-    def test_register_invalid_payload_returns_400(self):
-        response = self.client.post("/users/register/", data={}, content_type="application/json")
-        self.assertEqual(response.status_code, 400)
+class StranglerBoundaryTests(TestCase):
+    def test_legacy_user_route_is_no_longer_exposed_by_django(self):
+        response = Client().post("/users/register/", data={}, content_type="application/json")
+        self.assertEqual(response.status_code, 404)

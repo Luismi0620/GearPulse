@@ -1,90 +1,90 @@
-# GearPulse
+# GearPulse - Entrega 2
 
-## Entrega No. 1: Núcleo de negocio y API
+Evolución de GearPulse a una arquitectura de microservicios desplegable en AWS Academy. Nginx funciona
+como API Gateway, Django sirve exclusivamente la interfaz bilingüe y la lógica de negocio se ejecuta en
+microservicios Flask independientes. Redis y Celery procesan notificaciones e informes en segundo plano.
 
-GearPulse es una API para centralizar el registro de usuarios, la gestión de suscripciones, el
-emparejamiento de dispositivos deportivos y el seguimiento de sesiones de entrenamiento. La
-aplicación está construida con Django y Django REST Framework, con una separación clara entre
-las capas de interfaz, aplicación, dominio e infraestructura.
+## Evidencia para la exención del Parcial 02
 
-## Funcionalidades incluidas
+La arquitectura desplegada migra **7 de 7 flujos de negocio (100 %)** a servicios independientes, por encima
+del 70 % exigido. Django ya no registra rutas de negocio; solo entrega la UI y el selector de idioma.
 
-- Registro de usuarios con los roles de atleta y administrador.
-- Catálogo de planes y activación de suscripciones.
-- Consulta de métricas de salud simuladas para usuarios suscritos.
-- Emparejamiento de dispositivos mediante el patrón Builder.
-- Registro y consulta de sesiones de entrenamiento.
+| Flujo | Propietario en Entrega 2 | Persistencia |
+| --- | --- | --- |
+| Registro y consulta de usuario | `accounts_service` (Flask) | PostgreSQL accounts |
+| Catálogo y activación de planes | `subscriptions_service` (Flask) | PostgreSQL subscriptions |
+| Emparejamiento de dispositivos | `activity_service` (Flask) | PostgreSQL activity |
+| Registro y consulta de entrenamientos | `activity_service` (Flask) | PostgreSQL activity |
+| Métricas de salud | `health_metrics_service` (Flask) | Stateless |
+| API externa y equipo aliado | `integration_service` (Flask + Adapter) | Stateless |
+| Notificaciones e informes | `async_service` (Flask + Celery) | Redis |
 
-## Arquitectura
+La trazabilidad completa está en [`docs/ENTREGA-02.md`](docs/ENTREGA-02.md).
 
-El proyecto conserva los siguientes límites por responsabilidad:
+## Ejecutar todo el ecosistema
 
-- `accounts/`: registro y persistencia de usuarios.
-- `subscriptions/`: planes, suscripciones y métricas de salud.
-- `devices/`: dispositivos y sesiones de entrenamiento.
-- `common/`: excepciones compartidas.
-- `gearpulse_project/`: configuración y rutas principales de Django.
-
-En los módulos de dominio se aplican los patrones Builder y Factory. Las vistas REST validan las
-solicitudes con serializers y delegan los casos de uso a servicios de aplicación.
-
-## Endpoints
-
-| Método | Ruta | Descripción | Respuestas |
-| --- | --- | --- | --- |
-| POST | `/users/register/` | Registra un usuario | 201, 400, 409 |
-| GET | `/plans/` | Lista el catálogo de planes | 200 |
-| POST | `/subscription/activate/` | Activa una suscripción | 201, 400, 404, 409 |
-| GET | `/subscription/<user_id>/metrics/` | Consulta métricas simuladas | 200, 403 |
-| POST | `/devices/pair/` | Empareja un dispositivo | 201, 400, 404, 409 |
-| POST | `/devices/<device_id>/workouts/` | Registra una sesión de entrenamiento | 201, 400, 404 |
-| GET | `/devices/<device_id>/workouts/` | Lista las sesiones de un dispositivo | 200, 404 |
-
-### Ejemplo: registrar un usuario
-
-```json
-POST /users/register/
-{
-  "email": "ana@ejemplo.com",
-  "role": "athlete"
-}
-```
-
-Respuesta `201`:
-
-```json
-{
-  "id": "<uuid>",
-  "email": "ana@ejemplo.com",
-  "role": "athlete"
-}
-```
-
-## Ejecución local
-
-Requisitos: Python 3.12 o superior y `pip`.
+Requisitos: Docker Engine con Docker Compose v2.
 
 ```powershell
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py runserver
+Copy-Item .env.example .env
+# Edite .env y configure secretos, host e integración aliada.
+docker compose config
+docker compose up --build -d
+docker compose ps
 ```
 
-La API estará disponible en `http://127.0.0.1:8000/`.
+Abra `http://localhost:8080`. Solo Nginx publica un puerto; bases, Redis y servicios permanecen en la red
+interna de Docker.
+
+Detener sin borrar datos:
+
+```powershell
+docker compose down
+```
+
+## Rutas públicas principales
+
+| Método | Ruta | Destino |
+| --- | --- | --- |
+| POST | `/api/v2/users/register/` | Cuentas |
+| GET | `/api/v2/plans/` | Suscripciones |
+| POST | `/api/v2/subscriptions/activate/` | Suscripciones |
+| POST | `/api/v2/devices/pair/` | Actividad |
+| GET/POST | `/api/v2/devices/{id}/workouts/` | Actividad |
+| GET | `/api/v2/health-metrics/{user_id}/` | Métricas |
+| GET | `/api/v2/integrations/weather/` | API externa vía Adapter |
+| GET | `/api/v2/integrations/ally/` | Servicio aliado vía Adapter |
+| GET | `/api/v2/public/summary/` | Servicio JSON provisto por GearPulse |
+| GET | `/api/v2/tasks/{task_id}/` | Estado de tarea asíncrona |
+
+El contrato completo está en [`docs/openapi.yaml`](docs/openapi.yaml).
 
 ## Pruebas
 
+Las pruebas unitarias usan SQLite/memoria y no requieren servicios externos:
+
 ```powershell
-python manage.py test accounts subscriptions devices
+python -m unittest discover -s services -p "test_*.py"
+python -m unittest flask_metrics_service.test_app
+python manage.py test
+docker compose config --quiet
 ```
 
-Las pruebas cubren el registro de usuarios, la activación de suscripciones, el acceso a métricas,
-el emparejamiento de dispositivos y el registro de sesiones de entrenamiento.
+Prueba de humo integral después de levantar Compose:
 
-## Documentación adicional
+```powershell
+Invoke-RestMethod http://localhost:8080/api/v2/public/summary/
+Invoke-RestMethod http://localhost:8080/api/v2/plans/
+Invoke-RestMethod 'http://localhost:8080/api/v2/integrations/weather/?latitude=6.2442&longitude=-75.5812'
+```
 
-La justificación de la estructura de carpetas, el diagrama de secuencia del flujo principal y las
-decisiones de diseño de esta entrega se encuentran en
-[`docs/Entrega-01-Nucleo-de-Negocio.md`](docs/Entrega-01-Nucleo-de-Negocio.md).
+## Documentación de entrega
+
+- [`docs/ENTREGA-02.md`](docs/ENTREGA-02.md): rúbrica, decisiones, diagramas y cálculo de migración.
+- [`docs/AWS-ACADEMY-DEPLOYMENT.md`](docs/AWS-ACADEMY-DEPLOYMENT.md): despliegue EC2 e IP elástica paso a paso.
+- [`docs/ALLY-SERVICE.md`](docs/ALLY-SERVICE.md): contrato y configuración con el equipo aliado.
+- [`docs/CORRECCIONES-ENTREGA-1.md`](docs/CORRECCIONES-ENTREGA-1.md): evidencia y cierre obligatorio de observaciones previas.
+- [`docs/PRUEBAS-Y-SUSTENTACION.md`](docs/PRUEBAS-Y-SUSTENTACION.md): guion reproducible de validación.
+
+> Importante: el PDF exige entregar el enlace de la rama `main`, tener la EC2 encendida durante la
+> sustentación y que cada estudiante aporte commits identificables.

@@ -1,5 +1,3 @@
-import json
-
 from django.test import Client, TestCase
 
 from accounts.models import User
@@ -80,65 +78,7 @@ class WorkoutServiceTests(TestCase):
             )
 
 
-class DeviceViewsTests(TestCase):
-    def setUp(self):
-        self.client = Client()
-        self.user = User.objects.create(email="views-device@test.com")
-
-    def test_pair_then_log_workout(self):
-        pair_response = self.client.post(
-            "/devices/pair/",
-            data=json.dumps(
-                {
-                    "user_id": str(self.user.id),
-                    "brand": "Garmin",
-                    "model": "Fenix 7",
-                    "serial_number": "SN-000333",
-                }
-            ),
-            content_type="application/json",
-        )
-        self.assertEqual(pair_response.status_code, 201)
-        device_id = pair_response.json()["id"]
-
-        workout_response = self.client.post(
-            f"/devices/{device_id}/workouts/",
-            data=json.dumps(
-                {
-                    "start_time": "2026-08-24T08:00:00Z",
-                    "end_time": "2026-08-24T08:45:00Z",
-                    "calories": 320,
-                    "avg_heart_rate": 138,
-                }
-            ),
-            content_type="application/json",
-        )
-        self.assertEqual(workout_response.status_code, 201)
-
-    def test_pair_duplicate_serial_returns_409(self):
-        payload = json.dumps(
-            {
-                "user_id": str(self.user.id),
-                "brand": "Garmin",
-                "model": "Fenix 7",
-                "serial_number": "SN-000444",
-            }
-        )
-        self.client.post("/devices/pair/", data=payload, content_type="application/json")
-        response = self.client.post("/devices/pair/", data=payload, content_type="application/json")
-        self.assertEqual(response.status_code, 409)
-
-    def test_log_workout_unknown_device_returns_404(self):
-        response = self.client.post(
-            "/devices/00000000-0000-0000-0000-000000000000/workouts/",
-            data=json.dumps(
-                {
-                    "start_time": "2026-08-24T08:00:00Z",
-                    "end_time": "2026-08-24T08:45:00Z",
-                    "calories": 320,
-                    "avg_heart_rate": 138,
-                }
-            ),
-            content_type="application/json",
-        )
+class StranglerBoundaryTests(TestCase):
+    def test_legacy_device_route_is_no_longer_exposed_by_django(self):
+        response = Client().post("/devices/pair/", data={}, content_type="application/json")
         self.assertEqual(response.status_code, 404)

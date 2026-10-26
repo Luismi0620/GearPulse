@@ -1,6 +1,7 @@
 .git
 .venv
 venv
+tmp
 __pycache__
 *.py[cod]
 *.sqlite3

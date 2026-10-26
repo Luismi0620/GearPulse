@@ -1,57 +1,179 @@
 services:
-  db:
+  accounts_db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: gearpulse
+      POSTGRES_DB: accounts
       POSTGRES_USER: gearpulse
-      POSTGRES_PASSWORD: gearpulse
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gearpulse_local}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U gearpulse -d gearpulse"]
+      test: ["CMD-SHELL", "pg_isready -U gearpulse -d accounts"]
       interval: 5s
       timeout: 5s
-      retries: 10
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      retries: 12
+    volumes: [accounts_data:/var/lib/postgresql/data]
+    restart: unless-stopped
+    networks: [backend]
 
-  django_web:
-    build:
-      context: .
-      dockerfile: Dockerfile
+  subscriptions_db:
+    image: postgres:16-alpine
     environment:
-      ENV_TYPE: MOCK
-      DB_ENGINE: postgres
-      DB_HOST: db
-      POSTGRES_DB: gearpulse
+      POSTGRES_DB: subscriptions
       POSTGRES_USER: gearpulse
-      POSTGRES_PASSWORD: gearpulse
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gearpulse_local}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gearpulse -d subscriptions"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes: [subscriptions_data:/var/lib/postgresql/data]
+    restart: unless-stopped
+    networks: [backend]
+
+  activity_db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: activity
+      POSTGRES_USER: gearpulse
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gearpulse_local}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gearpulse -d activity"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes: [activity_data:/var/lib/postgresql/data]
+    restart: unless-stopped
+    networks: [backend]
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    volumes: [redis_data:/data]
+    restart: unless-stopped
+    networks: [backend]
+
+  accounts_service:
+    build: {context: ., dockerfile: services/accounts_service/Dockerfile}
+    environment:
+      DATABASE_URL: postgresql+psycopg://gearpulse:${POSTGRES_PASSWORD:-gearpulse_local}@accounts_db:5432/accounts
     depends_on:
-      db:
-        condition: service_healthy
-    expose:
-      - "8000"
+      accounts_db: {condition: service_healthy}
+    healthcheck: &python_healthcheck
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://localhost:5000/health').read()"]
+      interval: 10s
+      timeout: 4s
+      retries: 10
+    restart: unless-stopped
+    networks: [backend]
+
+  async_api:
+    build: {context: ., dockerfile: services/async_service/Dockerfile}
+    environment: &celery_environment
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+    depends_on:
+      redis: {condition: service_healthy}
+    healthcheck: *python_healthcheck
+    restart: unless-stopped
+    networks: [backend]
+
+  subscriptions_service:
+    build: {context: ., dockerfile: services/subscriptions_service/Dockerfile}
+    environment:
+      DATABASE_URL: postgresql+psycopg://gearpulse:${POSTGRES_PASSWORD:-gearpulse_local}@subscriptions_db:5432/subscriptions
+      ACCOUNT_SERVICE_URL: http://accounts_service:5000
+      ASYNC_SERVICE_URL: http://async_api:5000
+    depends_on:
+      subscriptions_db: {condition: service_healthy}
+      accounts_service: {condition: service_healthy}
+      async_api: {condition: service_healthy}
+    healthcheck: *python_healthcheck
+    restart: unless-stopped
+    networks: [backend]
+
+  activity_service:
+    build: {context: ., dockerfile: services/activity_service/Dockerfile}
+    environment:
+      DATABASE_URL: postgresql+psycopg://gearpulse:${POSTGRES_PASSWORD:-gearpulse_local}@activity_db:5432/activity
+      ACCOUNT_SERVICE_URL: http://accounts_service:5000
+      ASYNC_SERVICE_URL: http://async_api:5000
+    depends_on:
+      activity_db: {condition: service_healthy}
+      accounts_service: {condition: service_healthy}
+      async_api: {condition: service_healthy}
+    healthcheck: *python_healthcheck
+    restart: unless-stopped
+    networks: [backend]
 
   health_metrics_service:
-    build:
-      context: ./flask_metrics_service
-    expose:
-      - "5000"
+    build: {context: ., dockerfile: flask_metrics_service/Dockerfile}
+    environment:
+      SUBSCRIPTIONS_SERVICE_URL: http://subscriptions_service:5000
+      VERIFY_SUBSCRIPTION: "true"
+    depends_on:
+      subscriptions_service: {condition: service_healthy}
+    healthcheck: *python_healthcheck
+    restart: unless-stopped
+    networks: [backend]
+
+  integration_service:
+    build: {context: ., dockerfile: services/integration_service/Dockerfile}
+    environment:
+      ALLY_SERVICE_URL: ${ALLY_SERVICE_URL:-}
+      OPEN_METEO_URL: https://api.open-meteo.com
+    healthcheck: *python_healthcheck
+    restart: unless-stopped
+    networks: [frontend, backend]
+
+  celery_worker:
+    build: {context: ., dockerfile: services/async_service/Dockerfile}
+    command: ["celery", "-A", "services.async_service.celery_app.celery", "worker", "--loglevel=INFO", "--concurrency=2"]
+    environment: *celery_environment
+    depends_on:
+      redis: {condition: service_healthy}
+    restart: unless-stopped
+    networks: [backend]
+
+  django_web:
+    build: {context: ., dockerfile: Dockerfile}
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-replace-this-in-aws}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-false}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,django_web}
     healthcheck:
-      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://localhost:5000/health').read()"]
-      interval: 5s
-      timeout: 5s
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://localhost:8000/health/').read()"]
+      interval: 10s
+      timeout: 4s
       retries: 10
+    restart: unless-stopped
+    networks: [backend]
 
   nginx:
     image: nginx:1.27-alpine
     depends_on:
-      django_web:
-        condition: service_started
-      health_metrics_service:
-        condition: service_healthy
-    ports:
-      - "8080:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      accounts_service: {condition: service_healthy}
+      subscriptions_service: {condition: service_healthy}
+      activity_service: {condition: service_healthy}
+      health_metrics_service: {condition: service_healthy}
+      integration_service: {condition: service_healthy}
+      async_api: {condition: service_healthy}
+      django_web: {condition: service_healthy}
+    ports: ["${PUBLIC_PORT:-8080}:80"]
+    volumes: [./nginx/nginx.conf:/etc/nginx/nginx.conf:ro]
+    restart: unless-stopped
+    networks: [frontend, backend]
 
 volumes:
-  postgres_data:
+  accounts_data:
+  subscriptions_data:
+  activity_data:
+  redis_data:
+
+networks:
+  frontend:
+  backend:
+    internal: true

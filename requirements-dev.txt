@@ -1,0 +1,7 @@
+-r requirements.txt
+-r flask_metrics_service/requirements.txt
+-r services/accounts_service/requirements.txt
+-r services/subscriptions_service/requirements.txt
+-r services/activity_service/requirements.txt
+-r services/integration_service/requirements.txt
+-r services/async_service/requirements.txt
