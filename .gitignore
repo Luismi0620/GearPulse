@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+*.sqlite3
+instance/
+.venv/
+venv/
+.env
+tmp/
+*.log
+flask_metrics_service/.pytest_cache/

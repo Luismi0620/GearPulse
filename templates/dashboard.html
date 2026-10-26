@@ -1,0 +1,120 @@
+{% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+<!doctype html>
+<html lang="{{ LANGUAGE_CODE|default:'es' }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="{% translate 'Panel de bienestar y actividad GearPulse' %}">
+  <title>{% translate "GearPulse | Panel de bienestar" %}</title>
+  <style>
+    :root { --ink:#10213c; --muted:#607089; --surface:#fff; --line:#dfe6ef; --brand:#2457e6; --accent:#0c8f68; --bg:#f3f6fa; --danger:#b42318; --focus:#ffbf47; }
+    * { box-sizing:border-box; } html { scroll-behavior:smooth; }
+    body { margin:0; font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; background:var(--bg); color:var(--ink); line-height:1.5; }
+    a { color:inherit; } a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible { outline:3px solid var(--focus); outline-offset:2px; }
+    .skip { position:absolute; left:-999px; top:8px; background:#fff; padding:10px; z-index:10; } .skip:focus { left:8px; }
+    .visually-hidden { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+    header { background:linear-gradient(120deg,#10213c,#173c78); color:#fff; padding:20px clamp(18px,5vw,68px); }
+    .topbar { max-width:1180px; margin:auto; display:flex; align-items:center; justify-content:space-between; gap:22px; }
+    .brand { font-size:1.35rem; font-weight:850; letter-spacing:-.04em; text-decoration:none; } .brand span { color:#67e8c2; }
+    nav { display:flex; align-items:center; gap:16px; } nav a { color:#dbe7ff; text-decoration:none; font-weight:650; font-size:.9rem; }
+    .language-form { display:flex; gap:7px; align-items:center; } .language-form select { width:auto; padding:7px 9px; color:var(--ink); }
+    main { max-width:1180px; margin:0 auto; padding:38px 20px 70px; }
+    .hero { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:end; gap:24px; margin-bottom:28px; }
+    h1 { font-size:clamp(2rem,5vw,3.5rem); line-height:1.05; margin:0; letter-spacing:-.055em; max-width:720px; }
+    .hero p { margin:14px 0 0; color:var(--muted); max-width:720px; font-size:1.05rem; }
+    .status { display:inline-flex; align-items:center; gap:7px; background:#e7f9f2; color:#087153; border:1px solid #b7ead8; padding:8px 12px; border-radius:999px; font-size:.84rem; font-weight:750; white-space:nowrap; }
+    .status::before { content:""; width:8px; height:8px; border-radius:50%; background:#16a477; }
+    .steps { margin:0 0 22px; color:var(--muted); font-size:.92rem; }
+    .grid { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:18px; }
+    .card { grid-column:span 4; background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:22px; box-shadow:0 7px 22px rgba(28,45,78,.06); }
+    .card.wide { grid-column:span 6; } .card h2 { font-size:1.08rem; margin:0 0 5px; } .card > p { color:var(--muted); margin:0 0 17px; font-size:.9rem; }
+    .eyebrow { color:var(--brand); font-size:.72rem; letter-spacing:.09em; font-weight:850; text-transform:uppercase; margin-bottom:7px; }
+    form { display:grid; gap:11px; } label { display:grid; gap:5px; color:#3e4d64; font-weight:700; font-size:.82rem; }
+    input,select { width:100%; border:1px solid #bfcbd9; border-radius:9px; padding:10px 11px; font:inherit; color:var(--ink); background:#fff; }
+    button { border:0; border-radius:9px; padding:10px 14px; font:inherit; font-weight:780; cursor:pointer; background:var(--brand); color:#fff; }
+    button:hover { background:#1746ca; } button.secondary { background:#e9efff; color:#234db8; }
+    button[disabled] { opacity:.65; cursor:wait; }
+    .result { display:none; margin-top:14px; border-radius:9px; padding:11px 12px; background:#eaf7f2; color:#087153; font-size:.86rem; word-break:break-word; }
+    .result.error { background:#fff0ee; color:var(--danger); } .metric-row { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:14px; }
+    .metric { padding:12px 6px; border-radius:11px; background:#f4f7fb; text-align:center; } .metric strong { display:block; font-size:1.2rem; } .metric span { color:var(--muted); font-size:.72rem; }
+    .plans { display:grid; gap:9px; } .plan { border:1px solid var(--line); border-radius:10px; padding:11px; display:flex; justify-content:space-between; gap:8px; }
+    .plan small { color:var(--muted); display:block; } .plan b { color:var(--accent); } footer { color:var(--muted); text-align:center; margin-top:32px; font-size:.84rem; }
+    @media (max-width:900px) { .card,.card.wide { grid-column:span 6; } }
+    @media (max-width:640px) { .topbar,nav,.hero { align-items:flex-start; flex-direction:column; display:flex; } .card,.card.wide { grid-column:span 12; } }
+  </style>
+</head>
+{% translate "No fue posible completar la solicitud." as generic_error %}
+{% translate "Procesando..." as loading_text %}
+{% translate "días" as days_text %}
+<body data-error="{{ generic_error }}" data-loading="{{ loading_text }}" data-days="{{ days_text }}">
+  <a class="skip" href="#content">{% translate "Saltar al contenido" %}</a>
+  <header>
+    <div class="topbar">
+      <a class="brand" href="/">Gear<span>Pulse</span></a>
+      <nav aria-label="{% translate 'Navegación principal' %}">
+        <a href="#onboarding">{% translate "Primeros pasos" %}</a>
+        <a href="#activity">{% translate "Actividad" %}</a>
+        <a href="#integrations">{% translate "Integraciones" %}</a>
+        <form class="language-form" action="{% url 'set_language' %}" method="post">
+          {% csrf_token %}<input name="next" type="hidden" value="/">
+          <label><span class="visually-hidden">{% translate "Idioma" %}</span>
+            <select name="language" aria-label="{% translate 'Idioma' %}" onchange="this.form.submit()">
+              <option value="es"{% if LANGUAGE_CODE|slice:':2' == 'es' %} selected{% endif %}>Español</option>
+              <option value="en"{% if LANGUAGE_CODE|slice:':2' == 'en' %} selected{% endif %}>English</option>
+            </select>
+          </label>
+        </form>
+      </nav>
+    </div>
+  </header>
+  <main id="content">
+    <section class="hero" aria-labelledby="page-title">
+      <div><h1 id="page-title">{% translate "Tu rendimiento, conectado en un solo pulso." %}</h1><p>{% translate "Gestiona tu cuenta, suscripción, dispositivos y entrenamientos mediante una arquitectura de microservicios resiliente." %}</p></div>
+      <span class="status">{% translate "Gateway operativo" %}</span>
+    </section>
+    <p class="steps">{% translate "Flujo recomendado: crea tu usuario, activa un plan, empareja un dispositivo y registra un entrenamiento." %}</p>
+
+    <section class="grid" id="onboarding" aria-label="{% translate 'Primeros pasos' %}">
+      <article class="card"><div class="eyebrow">{% translate "Paso 1" %}</div><h2>{% translate "Crear usuario" %}</h2><p>{% translate "Registra una identidad para comenzar." %}</p>
+        <form id="register-form"><label>{% translate "Correo electrónico" %}<input name="email" type="email" autocomplete="email" placeholder="ana@example.com" required></label><label>{% translate "Rol" %}<select name="role"><option value="athlete">{% translate "Atleta" %}</option><option value="admin">{% translate "Administrador" %}</option></select></label><button>{% translate "Registrar usuario" %}</button></form><div class="result" id="register-result" role="status" aria-live="polite"></div>
+      </article>
+      <article class="card"><div class="eyebrow">{% translate "Paso 2" %}</div><h2>{% translate "Activar suscripción" %}</h2><p>{% translate "Selecciona un plan para habilitar las métricas." %}</p>
+        <form id="subscription-form"><label>{% translate "ID de usuario" %}<input name="user_id" class="user-id" required></label><label>{% translate "Plan" %}<select name="plan" id="plan-select" required></select></label><button>{% translate "Activar suscripción" %}</button></form><div class="result" id="subscription-result" role="status" aria-live="polite"></div>
+      </article>
+      <article class="card"><div class="eyebrow">{% translate "Paso 3" %}</div><h2>{% translate "Métricas de salud" %}</h2><p>{% translate "Consulta datos generados por el servicio independiente." %}</p>
+        <form id="metrics-form"><label>{% translate "ID de usuario" %}<input name="user_id" class="user-id" required></label><button class="secondary">{% translate "Consultar métricas" %}</button></form><div class="result" id="metrics-result" role="status" aria-live="polite"></div><div class="metric-row" id="metrics-values" hidden><div class="metric"><strong id="bpm">-</strong><span>{% translate "pulso BPM" %}</span></div><div class="metric"><strong id="sleep">-</strong><span>{% translate "horas de sueño" %}</span></div><div class="metric"><strong id="load">-</strong><span>{% translate "carga" %}</span></div></div>
+      </article>
+    </section>
+
+    <section class="grid" id="activity" style="margin-top:18px" aria-label="{% translate 'Actividad' %}">
+      <article class="card wide"><h2>{% translate "Emparejar dispositivo" %}</h2><p>{% translate "Vincula un wearable a tu cuenta." %}</p><form id="device-form"><label>{% translate "ID de usuario" %}<input name="user_id" class="user-id" required></label><label>{% translate "Marca" %}<input name="brand" placeholder="Garmin" required></label><label>{% translate "Modelo" %}<input name="model" placeholder="Forerunner 265" required></label><label>{% translate "Número de serie" %}<input name="serial_number" placeholder="GP-0001" minlength="6" required></label><button>{% translate "Emparejar dispositivo" %}</button></form><div class="result" id="device-result" role="status" aria-live="polite"></div></article>
+      <article class="card wide"><h2>{% translate "Registrar entrenamiento" %}</h2><p>{% translate "Guarda una sesión y genera su reporte en segundo plano." %}</p><form id="workout-form"><label>{% translate "ID de dispositivo" %}<input name="device_id" id="device-id" required></label><label>{% translate "Inicio" %}<input name="start_time" type="datetime-local" required></label><label>{% translate "Fin" %}<input name="end_time" type="datetime-local" required></label><label>{% translate "Calorías" %}<input name="calories" type="number" min="0" required></label><label>{% translate "Frecuencia cardíaca promedio" %}<input name="avg_heart_rate" type="number" min="1" required></label><button>{% translate "Guardar entrenamiento" %}</button></form><div class="result" id="workout-result" role="status" aria-live="polite"></div></article>
+    </section>
+
+    <section class="grid" id="integrations" style="margin-top:18px" aria-label="{% translate 'Integraciones' %}">
+      <article class="card"><h2>{% translate "Planes disponibles" %}</h2><p>{% translate "Catálogo administrado por el servicio de suscripciones." %}</p><div class="plans" id="plans-list" aria-live="polite"></div></article>
+      <article class="card"><h2>{% translate "Condiciones para entrenar" %}</h2><p>{% translate "Datos de Open-Meteo consumidos mediante un Adapter." %}</p><button class="secondary" id="weather-button">{% translate "Consultar clima de Medellín" %}</button><div class="result" id="weather-result" role="status" aria-live="polite"></div></article>
+      <article class="card"><h2>{% translate "Equipo aliado" %}</h2><p>{% translate "Resumen normalizado del servicio aliado configurado." %}</p><button class="secondary" id="ally-button">{% translate "Consultar servicio aliado" %}</button><div class="result" id="ally-result" role="status" aria-live="polite"></div></article>
+    </section>
+    <footer>GearPulse · {% translate "Entrega 2 - Arquitectura de microservicios" %} · <a href="/api/v2/public/summary/">{% translate "Contrato JSON público" %}</a></footer>
+  </main>
+  <script>
+    const $ = (selector) => document.querySelector(selector);
+    const genericError = document.body.dataset.error;
+    const show = (id, message, error = false) => { const el=$(id); el.textContent=message; el.className=`result${error?' error':''}`; el.style.display='block'; };
+    const api = async (url, options={}) => { const response=await fetch(url,{headers:{'Content-Type':'application/json'},...options}); let data={}; try { data=await response.json(); } catch (_) {} if(!response.ok){ const code=data.error?.code||data.status||response.status; const error=new Error(`${genericError} (${code})`); error.code=code; throw error; } return data; };
+    const withBusy = async (button, action) => { const label=button.textContent; button.disabled=true; button.textContent=document.body.dataset.loading; try{return await action();} finally{button.disabled=false; button.textContent=label;} };
+    const copyUserId = (id) => document.querySelectorAll('.user-id').forEach(input=>input.value=id);
+
+    $('#register-form').addEventListener('submit', event=>{ event.preventDefault(); const button=event.target.querySelector('button'); withBusy(button,async()=>{ try{const user=await api('/api/v2/users/register/',{method:'POST',body:JSON.stringify(Object.fromEntries(new FormData(event.target)))}); copyUserId(user.id); show('#register-result',`ID: ${user.id}`);}catch(error){show('#register-result',error.message,true);} }); });
+    $('#subscription-form').addEventListener('submit', event=>{ event.preventDefault(); const button=event.target.querySelector('button'); withBusy(button,async()=>{ try{const data=await api('/api/v2/subscriptions/activate/',{method:'POST',body:JSON.stringify(Object.fromEntries(new FormData(event.target)))}); show('#subscription-result',`${data.plan}: ${data.status}`);}catch(error){show('#subscription-result',error.message,true);} }); });
+    $('#metrics-form').addEventListener('submit', event=>{ event.preventDefault(); const button=event.target.querySelector('button'); withBusy(button,async()=>{ const id=new FormData(event.target).get('user_id'); try{const data=await api(`/api/v2/health-metrics/${encodeURIComponent(id)}/`); $('#bpm').textContent=data.pulse_bpm; $('#sleep').textContent=data.sleep_hours; $('#load').textContent=data.training_load; $('#metrics-values').hidden=false; show('#metrics-result',new Date(data.generated_at).toLocaleString());}catch(error){$('#metrics-values').hidden=true; show('#metrics-result',error.message,true);} }); });
+    $('#device-form').addEventListener('submit', event=>{ event.preventDefault(); const button=event.target.querySelector('button'); withBusy(button,async()=>{ try{const data=await api('/api/v2/devices/pair/',{method:'POST',body:JSON.stringify(Object.fromEntries(new FormData(event.target)))}); $('#device-id').value=data.id; show('#device-result',`${data.brand} ${data.model} · ID: ${data.id}`);}catch(error){show('#device-result',error.message,true);} }); });
+    $('#workout-form').addEventListener('submit', event=>{ event.preventDefault(); const button=event.target.querySelector('button'); withBusy(button,async()=>{ const values=Object.fromEntries(new FormData(event.target)); const deviceId=values.device_id; delete values.device_id; values.calories=Number(values.calories); values.avg_heart_rate=Number(values.avg_heart_rate); values.start_time=new Date(values.start_time).toISOString(); values.end_time=new Date(values.end_time).toISOString(); try{const data=await api(`/api/v2/devices/${encodeURIComponent(deviceId)}/workouts/`,{method:'POST',body:JSON.stringify(values)}); show('#workout-result',`${data.duration_minutes} min · ${data.calories} kcal`);}catch(error){show('#workout-result',error.message,true);} }); });
+    $('#weather-button').addEventListener('click',event=>withBusy(event.currentTarget,async()=>{try{const data=await api('/api/v2/integrations/weather/?latitude=6.2442&longitude=-75.5812'); show('#weather-result',`${data.temperature_c} °C · ${data.wind_speed_kmh} km/h · ${data.precipitation_mm} mm`);}catch(error){show('#weather-result',error.message,true);}}));
+    $('#ally-button').addEventListener('click',event=>withBusy(event.currentTarget,async()=>{try{const data=await api('/api/v2/integrations/ally/'); show('#ally-result',JSON.stringify(data.data));}catch(error){show('#ally-result',error.message,true);}}));
+    (async()=>{try{const plans=await api('/api/v2/plans/'); const list=$('#plans-list'); const select=$('#plan-select'); list.replaceChildren(); select.replaceChildren(); plans.forEach(plan=>{const row=document.createElement('div'); row.className='plan'; const info=document.createElement('div'); const strong=document.createElement('strong'); strong.textContent=plan.name; const small=document.createElement('small'); small.textContent=`${plan.duration_days} ${document.body.dataset.days}`; info.append(strong,small); const price=document.createElement('b'); price.textContent=`$${plan.price}`; row.append(info,price); list.append(row); const option=document.createElement('option'); option.value=plan.name; option.textContent=`${plan.name} · $${plan.price}`; select.append(option);});}catch(error){show('#plans-list',error.message,true);}})();
+  </script>
+</body>
+</html>
