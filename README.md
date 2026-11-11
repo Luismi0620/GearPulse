@@ -1,4 +1,5 @@
 # GearPulse - Entrega 2
+## Hecho por: Luis Miguel Mira y Tomás Vera
 
 Evolución de GearPulse a una arquitectura de microservicios desplegable en AWS Academy. Nginx funciona
 como API Gateway, Django sirve exclusivamente la interfaz bilingüe y la lógica de negocio se ejecuta en
@@ -85,6 +86,3 @@ Invoke-RestMethod 'http://localhost:8080/api/v2/integrations/weather/?latitude=6
 - [`docs/ALLY-SERVICE.md`](docs/ALLY-SERVICE.md): contrato y configuración con el equipo aliado.
 - [`docs/CORRECCIONES-ENTREGA-1.md`](docs/CORRECCIONES-ENTREGA-1.md): evidencia y cierre obligatorio de observaciones previas.
 - [`docs/PRUEBAS-Y-SUSTENTACION.md`](docs/PRUEBAS-Y-SUSTENTACION.md): guion reproducible de validación.
-
-> Importante: el PDF exige entregar el enlace de la rama `main`, tener la EC2 encendida durante la
-> sustentación y que cada estudiante aporte commits identificables.
