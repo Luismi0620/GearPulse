@@ -38,7 +38,7 @@ repository.save(subscription)
 notifier.send_subscription_activated(subscription)
 ```
 
-## Justificacion de diseno
+## Justificacion de diseño
 
 - Se aplica **SRP** separando transporte HTTP, reglas de negocio y adaptadores de infraestructura.
 - Se aplica **OCP**: es posible agregar nuevos planes, repositorios o notificaciones sin romper la vista.
